@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Food Web - Admin Panel</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <style>
+        :root {
+            --primary-color: #FF4500;
+            --secondary-color: #2c3e50;
+            --background-color: #f4f7f6;
+            --white: #ffffff;
+            --gray: #ecf0f1;
+            --dark-gray: #bdc3c7;
+            --success: #2ecc71;
+            --danger: #e74c3c;
+            --font-family: 'Poppins', sans-serif;
+        }
+
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background-color: var(--background-color);
+            color: var(--secondary-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        /* --- Login Section --- */
+        #login-section {
+            background-color: var(--white);
+            padding: 2.5rem;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+        }
+
+        #login-section h1 {
+            margin-bottom: 0.5rem;
+            font-size: 2rem;
+            color: var(--primary-color);
+        }
+
+        #login-section p {
+            margin-bottom: 2rem;
+            color: #7f8c8d;
+        }
+
+        .input-group {
+            margin-bottom: 1.5rem;
+            text-align: left;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 0.8rem 1rem;
+            border: 1px solid var(--dark-gray);
+            border-radius: 5px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+
+        button {
+            width: 100%;
+            padding: 0.9rem;
+            border: none;
+            background-color: var(--primary-color);
+            color: var(--white);
+            border-radius: 5px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #e63e00;
+        }
+
+        #error-message {
+            color: var(--danger);
+            margin-top: 1rem;
+            height: 20px;
+            font-weight: 500;
+        }
+
+        /* --- Admin Panel --- */
+        #admin-panel {
+            display: none;
+            width: 100%;
+            height: 100vh;
+            flex-direction: row;
+        }
+
+        .sidebar {
+            width: 250px;
+            background-color: var(--secondary-color);
+            color: var(--white);
+            display: flex;
+            flex-direction: column;
+            padding: 1.5rem 0;
+            transition: transform 0.3s ease-in-out;
+        }
+        
+        .sidebar-header {
+            padding: 0 1.5rem 1.5rem 1.5rem;
+            text-align: center;
+            border-bottom: 1px solid #34495e;
+        }
+
+        .sidebar-header h2 {
+            font-size: 1.5rem;
+            color: var(--primary-color);
+        }
+
+        .sidebar nav {
+            flex-grow: 1;
+        }
+
+        .sidebar nav ul {
+            list-style: none;
+        }
+
+        .sidebar nav a {
+            display: block;
+            padding: 1rem 1.5rem;
+            color: var(--gray);
+            text-decoration: none;
+            font-weight: 500;
+            transition: background-color 0.3s, color 0.3s;
+            border-left: 3px solid transparent;
+        }
+
+        .sidebar nav a:hover, .sidebar nav a.active {
+            background-color: #34495e;
+            color: var(--white);
+            border-left-color: var(--primary-color);
+        }
+        
+        .sidebar-footer {
+            padding: 1rem 1.5rem;
+        }
+        
+        .sidebar-footer button {
+            background-color: var(--danger);
+        }
+
+        .main-content {
+            flex-grow: 1;
+            padding: 2rem;
+            overflow-y: auto;
+        }
+        
+        .content-section {
+            display: none;
+        }
+        
+        .content-section.active {
+            display: block;
+        }
+
+        .content-header {
+            margin-bottom: 2rem;
+        }
+
+        .content-header h1 {
+            font-size: 2rem;
+        }
+        
+        /* --- Dashboard --- */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .stat-card {
+            background-color: var(--white);
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        }
+        
+        .stat-card h3 {
+            font-size: 1rem;
+            color: #7f8c8d;
+            margin-bottom: 0.5rem;
+        }
+        
+        .stat-card .value {
+            font-size: 2.5rem;
+            font-weight: 700;
+        }
+
+        /* --- Tables --- */
+        .data-table-container {
+            background-color: var(--white);
+            border-radius: 8px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+            overflow-x: auto;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .data-table th, .data-table td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--gray);
+        }
+        
+        .data-table th {
+            font-weight: 600;
+        }
+
+        .data-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .btn-approve {
+            background-color: var(--success);
+            color: white;
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-right: 0.5rem;
+        }
+
+        .btn-reject {
+            background-color: var(--danger);
+            color: white;
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        
+        /* --- Notifications --- */
+        #notifications-form .input-group {
+            margin-bottom: 1rem;
+        }
+        #notifications-form textarea {
+            width: 100%;
+            padding: 0.8rem;
+            border-radius: 5px;
+            border: 1px solid var(--dark-gray);
+            resize: vertical;
+            min-height: 100px;
+        }
+        #notifications-form button {
+            width: auto;
+            padding: 0.8rem 1.5rem;
+        }
+
+        /* --- Responsive Design --- */
+        @media (max-width: 768px) {
+            body {
+                flex-direction: column;
+            }
+            #admin-panel {
+                flex-direction: column;
+                height: auto;
+                min-height: 100vh;
+            }
+
+            .sidebar {
+                width: 100%;
+                height: auto;
+                flex-direction: row;
+                justify-content: space-between;
+                align-items: center;
+                padding: 0.5rem 1rem;
+            }
+            
+            .sidebar-header {
+                padding: 0;
+                border: none;
+            }
+
+            .sidebar nav {
+                display: none; /* Simple example; a hamburger menu would be better */
+            }
+            
+            .sidebar-footer {
+                 padding: 0;
+            }
+            
+            .sidebar-footer button {
+                padding: 0.5rem 1rem;
+                font-size: 0.9rem;
+            }
+
+            .main-content {
+                padding: 1rem;
+            }
+
+            .content-header h1 {
+                font-size: 1.5rem;
+            }
+            
+            .stat-card .value {
+                font-size: 2rem;
+            }
+        }
+        
+    </style>
+</head>
+<body>
+
+    <!-- LOGIN SECTION -->
+    <div id="login-section">
+        <h1>Food Web</h1>
+        <p>Admin Panel Login</p>
+        <form id="login-form">
+            <div class="input-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" required>
+            </div>
+            <div class="input-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" required>
+            </div>
+            <button type="submit">Login</button>
+            <p id="error-message"></p>
+        </form>
+    </div>
+
+    <!-- ADMIN PANEL (Hidden by default) -->
+    <div id="admin-panel">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>Admin</h2>
+            </div>
+            <nav>
+                <ul>
+                    <li><a href="#" class="nav-link active" data-target="dashboard">Dashboard</a></li>
+                    <li><a href="#" class="nav-link" data-target="restaurants">Restaurants</a></li>
+                    <li><a href="#" class="nav-link" data-target="delivery-boys">Delivery Boys</a></li>
+                    <li><a href="#" class="nav-link" data-target="customers">Customers</a></li>
+                    <li><a href="#" class="nav-link" data-target="orders">Manage Orders</a></li>
+                    <li><a href="#" class="nav-link" data-target="notifications">Notifications</a></li>
+                    <li><a href="#" class="nav-link" data-target="reports">Reports</a></li>
+                </ul>
+            </nav>
+            <div class="sidebar-footer">
+                <button id="logout-btn">Logout</button>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <!-- Dashboard Section -->
+            <section id="dashboard" class="content-section active">
+                <div class="content-header">
+                    <h1>Dashboard</h1>
+                </div>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <h3>Total Orders</h3>
+                        <p class="value" id="stats-orders">0</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Restaurants</h3>
+                        <p class="value" id="stats-restaurants">0</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Delivery Boys</h3>
+                        <p class="value" id="stats-delivery">0</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Customers</h3>
+                        <p class="value" id="stats-customers">0</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Total Revenue (COD)</h3>
+                        <p class="value" id="stats-revenue">₹0</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Restaurants Section -->
+            <section id="restaurants" class="content-section">
+                <div class="content-header">
+                    <h1>Approve Restaurants</h1>
+                </div>
+                <div class="data-table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Address</th>
+                                <th>Cuisine</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="restaurants-table-body">
+                           <!-- Data will be populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Delivery Boys Section -->
+            <section id="delivery-boys" class="content-section">
+                 <div class="content-header">
+                    <h1>Approve Delivery Boys</h1>
+                </div>
+                <div class="data-table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Phone</th>
+                                <th>Vehicle</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="delivery-boys-table-body">
+                           <!-- Data will be populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+            
+            <!-- Customers Section -->
+            <section id="customers" class="content-section">
+                 <div class="content-header">
+                    <h1>View Customers</h1>
+                </div>
+                <div class="data-table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Phone</th>
+                                <th>Address</th>
+                            </tr>
+                        </thead>
+                        <tbody id="customers-table-body">
+                           <!-- Data will be populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+            
+            <!-- Manage Orders Section -->
+            <section id="orders" class="content-section">
+                <div class="content-header">
+                    <h1>Manage Orders</h1>
+                </div>
+                <div class="data-table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Order ID</th>
+                                <th>Customer ID</th>
+                                <th>Restaurant ID</th>
+                                <th>Total</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="orders-table-body">
+                           <!-- Data will be populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Notifications Section -->
+            <section id="notifications" class="content-section">
+                 <div class="content-header">
+                    <h1>Send Notifications</h1>
+                </div>
+                 <div class="data-table-container">
+                    <form id="notifications-form">
+                        <div class="input-group">
+                            <label for="notification-message">Message</label>
+                            <textarea id="notification-message" required></textarea>
+                        </div>
+                        <button type="submit">Send Notification</button>
+                    </form>
+                </div>
+            </section>
+
+            <!-- Reports Section -->
+            <section id="reports" class="content-section">
+                <div class="content-header">
+                    <h1>Reports</h1>
+                </div>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <h3>Top Restaurant (by orders)</h3>
+                        <p class="value" id="report-top-restaurant">-</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Total COD Collected</h3>
+                        <p class="value" id="report-cod-total">₹0</p>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Firebase Config (REPLACE with your actual config)
+            const firebaseConfig = {
+  apiKey: "AIzaSyBzhuY7aLnsHwU_hiX1enHCclL6WGufZXM",
+  authDomain: "liteai-1.firebaseapp.com",
+  databaseURL: "https://liteai-1-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "liteai-1",
+  storageBucket: "liteai-1.firebasestorage.app",
+  messagingSenderId: "100658658829",
+  appId: "1:100658658829:web:7f8015b27f4090ead35f44"
+};
+
+            // Initialize Firebase
+            if (!firebase.apps.length) {
+                firebase.initializeApp(firebaseConfig);
+            }
+            const auth = firebase.auth();
+            const db = firebase.database();
+
+            // UI Elements
+            const loginSection = document.getElementById('login-section');
+            const adminPanel = document.getElementById('admin-panel');
+            const loginForm = document.getElementById('login-form');
+            const emailInput = document.getElementById('email');
+            const passwordInput = document.getElementById('password');
+            const errorMessage = document.getElementById('error-message');
+            const logoutBtn = document.getElementById('logout-btn');
+            const navLinks = document.querySelectorAll('.nav-link');
+            const contentSections = document.querySelectorAll('.content-section');
+
+            // --- AUTHENTICATION LOGIC ---
+
+            // Check auth state
+            auth.onAuthStateChanged(user => {
+                if (user) {
+                    loginSection.style.display = 'none';
+                    adminPanel.style.display = 'flex';
+                    // User is logged in, fetch all data
+                    loadDashboardData();
+                    loadRestaurants();
+                    loadDeliveryBoys();
+                    loadCustomers();
+                    loadOrders();
+                    loadReports();
+                } else {
+                    loginSection.style.display = 'block';
+                    adminPanel.style.display = 'none';
+                }
+            });
+
+            // Login
+            loginForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const email = emailInput.value;
+                const password = passwordInput.value;
+                errorMessage.textContent = '';
+
+                auth.signInWithEmailAndPassword(email, password)
+                    .catch(error => {
+                        errorMessage.textContent = 'Error: Invalid email or password.';
+                        console.error("Admin Login Error:", error);
+                    });
+            });
+
+            // Logout
+            logoutBtn.addEventListener('click', () => {
+                auth.signOut();
+            });
+
+
+            // --- NAVIGATION LOGIC ---
+            navLinks.forEach(link => {
+                link.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    
+                    // Update active link
+                    navLinks.forEach(nav => nav.classList.remove('active'));
+                    link.classList.add('active');
+                    
+                    // Update active content
+                    const targetId = link.getAttribute('data-target');
+                    contentSections.forEach(section => {
+                        section.classList.remove('active');
+                        if (section.id === targetId) {
+                            section.classList.add('active');
+                        }
+                    });
+                });
+            });
+
+
+            // --- DATA FETCHING AND RENDERING LOGIC ---
+
+            // Dashboard Stats
+            function loadDashboardData() {
+                db.ref('orders').on('value', snap => {
+                    document.getElementById('stats-orders').textContent = snap.numChildren();
+                });
+                 db.ref('restaurants').on('value', snap => {
+                    document.getElementById('stats-restaurants').textContent = snap.numChildren();
+                });
+                db.ref('deliveryPartners').on('value', snap => {
+                    document.getElementById('stats-delivery').textContent = snap.numChildren();
+                });
+                db.ref('customers').on('value', snap => {
+                    document.getElementById('stats-customers').textContent = snap.numChildren();
+                });
+                 db.ref('orders').orderByChild('status').equalTo('DELIVERED').on('value', snap => {
+                    let totalRevenue = 0;
+                    snap.forEach(orderSnap => {
+                        totalRevenue += orderSnap.val().totalAmount || 0;
+                    });
+                    document.getElementById('stats-revenue').textContent = `₹${totalRevenue.toFixed(2)}`;
+                });
+            }
+
+            // Approve/Reject Restaurants
+            function loadRestaurants() {
+                const tableBody = document.getElementById('restaurants-table-body');
+                db.ref('restaurants').orderByChild('approved').equalTo(false).on('value', snap => {
+                    tableBody.innerHTML = '';
+                    snap.forEach(childSnap => {
+                        const restaurant = childSnap.val();
+                        const uid = childSnap.key;
+                        const row = `
+                            <tr>
+                                <td>${restaurant.name || 'N/A'}</td>
+                                <td>${restaurant.email || 'N/A'}</td>
+                                <td>${restaurant.address || 'N/A'}</td>
+                                <td>${restaurant.cuisine || 'N/A'}</td>
+                                <td>
+                                    <button class="btn-approve" onclick="approveUser('restaurants', '${uid}')">Approve</button>
+                                    <button class="btn-reject" onclick="rejectUser('restaurants', '${uid}')">Reject</button>
+                                </td>
+                            </tr>
+                        `;
+                        tableBody.innerHTML += row;
+                    });
+                     if (tableBody.innerHTML === '') {
+                        tableBody.innerHTML = `<tr><td colspan="5">No pending approvals.</td></tr>`;
+                    }
+                });
+            }
+
+            // Approve/Reject Delivery Boys
+            function loadDeliveryBoys() {
+                 const tableBody = document.getElementById('delivery-boys-table-body');
+                 db.ref('deliveryPartners').orderByChild('approved').equalTo(false).on('value', snap => {
+                    tableBody.innerHTML = '';
+                    snap.forEach(childSnap => {
+                        const partner = childSnap.val();
+                        const uid = childSnap.key;
+                        const row = `
+                            <tr>
+                                <td>${partner.name || 'N/A'}</td>
+                                <td>${partner.email || 'N/A'}</td>
+                                <td>${partner.phone || 'N/A'}</td>
+                                <td>${partner.vehicle || 'N/A'}</td>
+                                <td>
+                                    <button class="btn-approve" onclick="approveUser('deliveryPartners', '${uid}')">Approve</button>
+                                    <button class="btn-reject" onclick="rejectUser('deliveryPartners', '${uid}')">Reject</button>
+                                </td>
+                            </tr>
+                        `;
+                        tableBody.innerHTML += row;
+                    });
+                     if (tableBody.innerHTML === '') {
+                        tableBody.innerHTML = `<tr><td colspan="5">No pending approvals.</td></tr>`;
+                    }
+                });
+            }
+
+            // View Customers
+            function loadCustomers() {
+                const tableBody = document.getElementById('customers-table-body');
+                db.ref('customers').on('value', snap => {
+                    tableBody.innerHTML = '';
+                    snap.forEach(childSnap => {
+                        const customer = childSnap.val();
+                        const row = `
+                            <tr>
+                                <td>${customer.name || 'N/A'}</td>
+                                <td>${customer.email || 'N/A'}</td>
+                                <td>${customer.phone || 'N/A'}</td>
+                                <td>${customer.address || 'N/A'}</td>
+                            </tr>
+                        `;
+                        tableBody.innerHTML += row;
+                    });
+                });
+            }
+            
+            // Manage Orders
+            function loadOrders() {
+                 const tableBody = document.getElementById('orders-table-body');
+                 db.ref('orders').on('value', snap => {
+                    tableBody.innerHTML = '';
+                    snap.forEach(childSnap => {
+                        const order = childSnap.val();
+                        const orderId = childSnap.key;
+                        const row = `
+                            <tr>
+                                <td>${orderId.substring(0, 8)}...</td>
+                                <td>${order.customerUid.substring(0, 8)}...</td>
+                                <td>${order.restaurantId.substring(0, 8)}...</td>
+                                <td>₹${order.totalAmount.toFixed(2)}</td>
+                                <td>${order.status}</td>
+                                <td>
+                                    <button class="btn-reject" onclick="cancelOrder('${orderId}')">Cancel</button>
+                                </td>
+                            </tr>
+                        `;
+                        tableBody.innerHTML += row;
+                    });
+                });
+            }
+            
+            // Reports
+            function loadReports() {
+                 db.ref('orders').on('value', snap => {
+                    const restaurantOrders = {};
+                    let totalCOD = 0;
+                    snap.forEach(orderSnap => {
+                        const order = orderSnap.val();
+                        // Calculate top restaurant
+                        if (order.restaurantId) {
+                            restaurantOrders[order.restaurantId] = (restaurantOrders[order.restaurantId] || 0) + 1;
+                        }
+                        // Calculate total COD
+                        if (order.status === 'DELIVERED') {
+                           totalCOD += order.totalAmount || 0;
+                        }
+                    });
+
+                    // Find top restaurant
+                    let topRestaurantId = '-';
+                    let maxOrders = 0;
+                    for (const restaurantId in restaurantOrders) {
+                        if (restaurantOrders[restaurantId] > maxOrders) {
+                            maxOrders = restaurantOrders[restaurantId];
+                            topRestaurantId = restaurantId;
+                        }
+                    }
+                    
+                    if(topRestaurantId !== '-') {
+                        db.ref(`restaurants/${topRestaurantId}/name`).once('value').then(nameSnap => {
+                           document.getElementById('report-top-restaurant').textContent = nameSnap.val() || 'Unknown';
+                        });
+                    } else {
+                        document.getElementById('report-top-restaurant').textContent = 'N/A';
+                    }
+
+                    document.getElementById('report-cod-total').textContent = `₹${totalCOD.toFixed(2)}`;
+                });
+            }
+
+            // Notifications
+            const notificationsForm = document.getElementById('notifications-form');
+            notificationsForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const message = document.getElementById('notification-message').value;
+                if(message) {
+                    db.ref('admin/notifications').push({
+                        message: message,
+                        createdAt: firebase.database.ServerValue.TIMESTAMP
+                    }).then(() => {
+                        alert('Notification sent!');
+                        notificationsForm.reset();
+                    }).catch(err => {
+                        alert('Error sending notification.');
+                        console.error(err);
+                    });
+                }
+            });
+
+            // --- GLOBAL HELPER FUNCTIONS ---
+            window.approveUser = (userType, uid) => {
+                if (confirm('Are you sure you want to approve this user?')) {
+                    db.ref(`${userType}/${uid}`).update({ approved: true })
+                        .then(() => alert('User approved.'))
+                        .catch(err => console.error(err));
+                }
+            };
+            
+            window.rejectUser = (userType, uid) => {
+                 if (confirm('Are you sure you want to reject and delete this user? This action cannot be undone.')) {
+                    db.ref(`${userType}/${uid}`).remove()
+                        .then(() => alert('User rejected and removed.'))
+                        .catch(err => console.error(err));
+                }
+            };
+
+            window.cancelOrder = (orderId) => {
+                 if (confirm('Are you sure you want to cancel this order?')) {
+                    db.ref(`orders/${orderId}`).update({ status: 'CANCELLED' })
+                        .then(() => alert('Order cancelled.'))
+                        .catch(err => console.error(err));
+                }
+            };
+
+        });
+    </script>
+</body>
+</html>
