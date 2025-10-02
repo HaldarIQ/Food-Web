@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Food Web - Delivery</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+
+        :root {
+            --primary-color: #FF4500;
+            --secondary-color: #2c3e50;
+            --background-color: #f4f7f6;
+            --white: #ffffff;
+            --gray: #ecf0f1;
+            --dark-gray: #bdc3c7;
+            --text-color: #34495e;
+            --success: #2ecc71;
+            --danger: #e74c3c;
+            --font-family: 'Poppins', sans-serif;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background-color: var(--background-color);
+            color: var(--text-color);
+        }
+
+        /* --- AUTH CONTAINER --- */
+        #auth-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 1rem;
+        }
+
+        .auth-form-wrapper {
+            background-color: var(--white);
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .auth-form-wrapper h1 {
+            text-align: center;
+            color: var(--primary-color);
+            margin-bottom: 0.5rem;
+        }
+
+        .auth-form-wrapper p {
+            text-align: center;
+            margin-bottom: 2rem;
+            color: #7f8c8d;
+        }
+
+        .input-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 0.8rem 1rem;
+            border: 1px solid var(--dark-gray);
+            border-radius: 5px;
+            font-size: 1rem;
+        }
+
+        button, .btn {
+            width: 100%;
+            padding: 0.9rem;
+            border: none;
+            background-color: var(--primary-color);
+            color: var(--white);
+            border-radius: 5px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-align: center;
+            display: inline-block;
+        }
+
+        .toggle-form {
+            text-align: center;
+            margin-top: 1.5rem;
+        }
+
+        .toggle-form a {
+            color: var(--primary-color);
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        #error-message {
+            color: var(--danger);
+            text-align: center;
+            height: 20px;
+            margin-top: 1rem;
+        }
+
+        #signup-form {
+            display: none;
+        }
+        
+        /* --- MAIN APP --- */
+        #app-container {
+            display: none;
+            flex-direction: column;
+            height: 100vh;
+            max-width: 600px;
+            margin: 0 auto;
+            background: var(--white);
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+        }
+        
+        #pending-approval {
+            display: flex; /* Hidden by default, shown via JS */
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 2rem;
+            height: 100%;
+        }
+        
+        #delivery-dashboard {
+            display: none; /* Hidden by default, shown via JS */
+            flex-direction: column;
+            height: 100%;
+        }
+        
+        .app-header {
+            padding: 1rem;
+            background: var(--white);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 10;
+        }
+
+        .app-header h2 {
+            color: var(--primary-color);
+            font-size: 1.5rem;
+        }
+
+        .online-toggle {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 28px;
+        }
+        .switch input { display: none; }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 20px;
+            width: 20px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider { background-color: var(--success); }
+        input:checked + .slider:before { transform: translateX(22px); }
+
+        .app-main {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 1rem;
+            background-color: var(--background-color);
+        }
+
+        .page { display: none; }
+        .page.active { display: block; }
+
+        .bottom-nav {
+            display: flex;
+            justify-content: space-around;
+            padding: 0.5rem 0;
+            background: var(--white);
+            box-shadow: 0 -2px 5px rgba(0,0,0,0.05);
+        }
+
+        .nav-btn {
+            background: none; border: none; cursor: pointer;
+            padding: 0.5rem; display: flex; flex-direction: column;
+            align-items: center; color: var(--dark-gray); transition: color 0.3s;
+            flex: 1;
+        }
+        .nav-btn.active { color: var(--primary-color); }
+        .nav-btn span { font-size: 0.8rem; }
+        
+        /* General Components */
+        .card {
+            background: var(--white);
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            margin-bottom: 1rem;
+            padding: 1rem;
+        }
+        
+        .card h3 {
+            border-bottom: 1px solid var(--gray);
+            padding-bottom: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .btn-full { width: 100%; margin-top: 1rem; }
+        .btn-success { background-color: var(--success); }
+        .btn-logout { background-color: var(--danger); }
+        
+        /* Page: Orders */
+        #no-orders-msg, #no-active-order-msg {
+            text-align: center;
+            color: #7f8c8d;
+            padding: 2rem 0;
+        }
+
+        .order-info p { margin-bottom: 0.5rem; }
+        .order-info strong { color: var(--secondary-color); }
+        
+        /* Location Input */
+        .location-sender { display: flex; gap: 0.5rem; margin-top: 1rem; }
+        .location-sender input { flex-grow: 1; padding: 0.8rem; border: 1px solid var(--dark-gray); border-radius: 5px; }
+        .location-sender button { width: auto; padding: 0 1rem; }
+
+    </style>
+</head>
+<body>
+
+    <!-- AUTHENTICATION -->
+    <div id="auth-container">
+        <div class="auth-form-wrapper">
+            <!-- Login Form -->
+            <form id="login-form">
+                <h1>Delivery Partner</h1>
+                <p>Login to your account</p>
+                <div class="input-group">
+                    <label for="login-email">Email</label>
+                    <input type="email" id="login-email" required>
+                </div>
+                <div class="input-group">
+                    <label for="login-password">Password</label>
+                    <input type="password" id="login-password" required>
+                </div>
+                <button type="submit">Login</button>
+                <p id="error-message"></p>
+                <div class="toggle-form">
+                    Need an account? <a id="show-signup">Sign Up</a>
+                </div>
+            </form>
+            <!-- Signup Form -->
+            <form id="signup-form">
+                <h1>Partner Signup</h1>
+                <p>Join the Food Web fleet</p>
+                <div class="input-group">
+                    <label for="signup-name">Full Name</label>
+                    <input type="text" id="signup-name" required>
+                </div>
+                <div class="input-group">
+                    <label for="signup-email">Email</label>
+                    <input type="email" id="signup-email" required>
+                </div>
+                <div class="input-group">
+                    <label for="signup-password">Password</label>
+                    <input type="password" id="signup-password" required>
+                </div>
+                 <div class="input-group">
+                    <label for="signup-phone">Phone Number</label>
+                    <input type="tel" id="signup-phone" required>
+                </div>
+                 <div class="input-group">
+                    <label for="signup-vehicle">Vehicle Info (e.g., Bike - AP05XX1234)</label>
+                    <input type="text" id="signup-vehicle" required>
+                </div>
+                <button type="submit">Sign Up</button>
+                <div class="toggle-form">
+                    Already registered? <a id="show-login">Login</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MAIN APP CONTAINER -->
+    <div id="app-container">
+        <!-- PENDING APPROVAL SCREEN -->
+        <div id="pending-approval">
+            <h2>Account Pending Approval</h2>
+            <p>Thanks for registering! Your account is under review. We will notify you once it's approved.</p>
+        </div>
+        
+        <!-- DELIVERY DASHBOARD -->
+        <div id="delivery-dashboard">
+            <header class="app-header">
+                <h2 id="header-title">Orders</h2>
+                <div class="online-toggle">
+                    <span id="online-status-text">Offline</span>
+                    <label class="switch">
+                        <input type="checkbox" id="online-toggle-switch">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </header>
+
+            <main class="app-main">
+                <!-- Page: Orders -->
+                <div id="page-orders" class="page active">
+                    <div id="active-order-container">
+                        <!-- Active order will be injected here -->
+                    </div>
+                    <div id="available-orders-container">
+                        <!-- Available orders will be injected here -->
+                    </div>
+                </div>
+
+                <!-- Page: Earnings -->
+                <div id="page-earnings" class="page">
+                    <div class="card">
+                        <h3>Earnings Summary</h3>
+                        <p>Total Completed Deliveries: <strong id="total-deliveries">0</strong></p>
+                        <p>Total Earned: <strong id="total-earnings">₹0.00</strong></p>
+                    </div>
+                </div>
+
+                <!-- Page: Profile -->
+                <div id="page-profile" class="page">
+                    <div class="card">
+                         <h3>Your Profile</h3>
+                         <form id="profile-form">
+                            <div class="input-group">
+                                <label for="profile-name">Full Name</label>
+                                <input type="text" id="profile-name" required>
+                            </div>
+                            <div class="input-group">
+                                <label for="profile-phone">Phone Number</label>
+                                <input type="tel" id="profile-phone" required>
+                            </div>
+                             <div class="input-group">
+                                <label for="profile-vehicle">Vehicle Info</label>
+                                <input type="text" id="profile-vehicle" required>
+                            </div>
+                            <button type="submit" class="btn">Update Profile</button>
+                        </form>
+                        <button id="logout-btn" class="btn btn-logout" style="margin-top: 1rem;">Logout</button>
+                    </div>
+                </div>
+            </main>
+            
+            <nav class="bottom-nav">
+                <button class="nav-btn active" data-page="orders"><span>Orders</span></button>
+                <button class="nav-btn" data-page="earnings"><span>Earnings</span></button>
+                <button class="nav-btn" data-page="profile"><span>Profile</span></button>
+            </nav>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- FIREBASE CONFIG ---
+            const firebaseConfig = {
+  apiKey: "AIzaSyBzhuY7aLnsHwU_hiX1enHCclL6WGufZXM",
+  authDomain: "liteai-1.firebaseapp.com",
+  databaseURL: "https://liteai-1-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "liteai-1",
+  storageBucket: "liteai-1.firebasestorage.app",
+  messagingSenderId: "100658658829",
+  appId: "1:100658658829:web:7f8015b27f4090ead35f44"
+};
+
+            // --- INITIALIZE FIREBASE ---
+            if (!firebase.apps.length) {
+                firebase.initializeApp(firebaseConfig);
+            }
+            const auth = firebase.auth();
+            const db = firebase.database();
+            
+            // --- GLOBAL STATE ---
+            let currentUser = null;
+            
+            // --- UI ELEMENTS ---
+            const authContainer = document.getElementById('auth-container');
+            const appContainer = document.getElementById('app-container');
+            const loginForm = document.getElementById('login-form');
+            const signupForm = document.getElementById('signup-form');
+            const showSignupBtn = document.getElementById('show-signup');
+            const showLoginBtn = document.getElementById('show-login');
+            const errorMessage = document.getElementById('error-message');
+            const pendingApprovalDiv = document.getElementById('pending-approval');
+            const deliveryDashboardDiv = document.getElementById('delivery-dashboard');
+            const navButtons = document.querySelectorAll('.nav-btn');
+            const pages = document.querySelectorAll('.page');
+            const headerTitle = document.getElementById('header-title');
+            const logoutBtn = document.getElementById('logout-btn');
+            const onlineToggle = document.getElementById('online-toggle-switch');
+            const onlineStatusText = document.getElementById('online-status-text');
+            const availableOrdersContainer = document.getElementById('available-orders-container');
+            const activeOrderContainer = document.getElementById('active-order-container');
+
+            // --- AUTHENTICATION ---
+            showSignupBtn.addEventListener('click', () => {
+                loginForm.style.display = 'none';
+                signupForm.style.display = 'block';
+            });
+            showLoginBtn.addEventListener('click', () => {
+                signupForm.style.display = 'none';
+                loginForm.style.display = 'block';
+            });
+
+            // Handle Signup
+            signupForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const name = document.getElementById('signup-name').value;
+                const email = document.getElementById('signup-email').value;
+                const password = document.getElementById('signup-password').value;
+                const phone = document.getElementById('signup-phone').value;
+                const vehicle = document.getElementById('signup-vehicle').value;
+                
+                auth.createUserWithEmailAndPassword(email, password)
+                    .then(userCredential => {
+                        db.ref('deliveryPartners/' + userCredential.user.uid).set({
+                            name, email, phone, vehicle,
+                            approved: false,
+                            online: false
+                        });
+                    })
+                    .catch(error => { errorMessage.textContent = error.message; });
+            });
+
+            // Handle Login
+            loginForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const email = document.getElementById('login-email').value;
+                const password = document.getElementById('login-password').value;
+                auth.signInWithEmailAndPassword(email, password)
+                    .catch(error => { errorMessage.textContent = error.message; });
+            });
+
+            // Handle Logout
+            logoutBtn.addEventListener('click', () => {
+                if(currentUser) {
+                    db.ref('deliveryPartners/' + currentUser.uid).update({ online: false });
+                }
+                auth.signOut();
+            });
+
+            // Auth State Observer
+            auth.onAuthStateChanged(user => {
+                if (user) {
+                    currentUser = user;
+                    authContainer.style.display = 'none';
+                    appContainer.style.display = 'flex';
+                    checkApprovalStatus(user.uid);
+                } else {
+                    currentUser = null;
+                    authContainer.style.display = 'block';
+                    appContainer.style.display = 'none';
+                }
+            });
+
+            // --- APPROVAL & ONLINE STATUS ---
+            function checkApprovalStatus(uid) {
+                db.ref('deliveryPartners/' + uid).on('value', snapshot => {
+                    const partner = snapshot.val();
+                    if (partner && partner.approved) {
+                        pendingApprovalDiv.style.display = 'none';
+                        deliveryDashboardDiv.style.display = 'flex';
+                        onlineToggle.checked = partner.online;
+                        onlineStatusText.textContent = partner.online ? 'Online' : 'Offline';
+                        
+                        // Initial data load for dashboard
+                        loadActiveOrder();
+                        loadAvailableOrders(); // This will depend on online status logic
+                        loadProfileData();
+                        loadEarnings();
+
+                    } else {
+                        pendingApprovalDiv.style.display = 'flex';
+                        deliveryDashboardDiv.style.display = 'none';
+                    }
+                });
+            }
+
+            onlineToggle.addEventListener('change', () => {
+                const isOnline = onlineToggle.checked;
+                db.ref('deliveryPartners/' + currentUser.uid).update({ online: isOnline });
+            });
+            
+            // --- NAVIGATION ---
+            navButtons.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const pageId = btn.dataset.page;
+                    navButtons.forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    
+                    pages.forEach(p => p.classList.remove('active'));
+                    document.getElementById(`page-${pageId}`).classList.add('active');
+                    headerTitle.textContent = pageId.charAt(0).toUpperCase() + pageId.slice(1);
+                });
+            });
+
+            // --- ORDER MANAGEMENT ---
+
+            // 1. Load the single active order assigned to the partner
+            function loadActiveOrder() {
+                const activeOrderRef = db.ref('orders').orderByChild('deliveryUid').equalTo(currentUser.uid);
+                activeOrderRef.on('value', snapshot => {
+                    let hasActiveOrder = false;
+                    snapshot.forEach(childSnapshot => {
+                        const order = childSnapshot.val();
+                        // Filter for orders that are not yet delivered or cancelled
+                        if (order.status !== 'DELIVERED' && order.status !== 'CANCELLED') {
+                             renderActiveOrder(childSnapshot.key, order);
+                             hasActiveOrder = true;
+                        }
+                    });
+
+                    if (!hasActiveOrder) {
+                        activeOrderContainer.innerHTML = '<p id="no-active-order-msg">You have no active order.</p>';
+                        // If no active order, show available orders
+                        availableOrdersContainer.style.display = 'block';
+                        loadAvailableOrders();
+                    } else {
+                        // If there IS an active order, hide the available ones
+                        availableOrdersContainer.style.display = 'none';
+                    }
+                });
+            }
+            
+            // 2. Load available orders if the partner is online and has no active order
+            function loadAvailableOrders() {
+                 db.ref('deliveryPartners/' + currentUser.uid + '/online').on('value', onlineSnap => {
+                    if (onlineSnap.val()) { // Is the partner online?
+                        const availableOrdersRef = db.ref('orders').orderByChild('status').equalTo('READY_FOR_PICKUP');
+                        availableOrdersRef.on('value', snapshot => {
+                            availableOrdersContainer.innerHTML = '<h3>Available Orders</h3>';
+                            if (!snapshot.exists()) {
+                                availableOrdersContainer.innerHTML += '<p id="no-orders-msg">No orders available for pickup right now.</p>';
+                                return;
+                            }
+                            snapshot.forEach(childSnapshot => {
+                                renderAvailableOrder(childSnapshot.key, childSnapshot.val());
+                            });
+                        });
+                    } else {
+                        availableOrdersContainer.innerHTML = '<h3>Available Orders</h3><p id="no-orders-msg">Go online to see available orders.</p>';
+                    }
+                 });
+            }
+
+            function renderActiveOrder(orderId, order) {
+                let actionButton = '';
+                switch (order.status) {
+                    case 'PICKED_UP':
+                        actionButton = `<button class="btn btn-full" onclick="updateOrderStatus('${orderId}', 'OUT_FOR_DELIVERY')">Start Delivery</button>`;
+                        break;
+                    case 'OUT_FOR_DELIVERY':
+                        actionButton = `<button class="btn btn-full btn-success" onclick="updateOrderStatus('${orderId}', 'DELIVERED')">Mark as Delivered (COD Collected)</button>`;
+                        break;
+                    default:
+                         actionButton = `<p><strong>Status:</strong> ${order.status}</p>`;
+                }
+
+                activeOrderContainer.innerHTML = `
+                    <div class="card">
+                        <h3>Active Order: #${orderId.substring(0,6)}</h3>
+                        <div class="order-info">
+                            <p><strong>Pickup From:</strong> Fetching restaurant...</p>
+                            <p><strong>Deliver To:</strong> ${order.address}</p>
+                            <p><strong>Customer Phone:</strong> <a href="tel:${order.phone}">${order.phone}</a></p>
+                            <p><strong>Amount to Collect (COD):</strong> ₹${order.totalAmount.toFixed(2)}</p>
+                        </div>
+                        <div class="location-sender">
+                            <input type="text" id="location-link" placeholder="Paste map link here">
+                            <button class="btn" onclick="sendLocationLink('${orderId}')">Send</button>
+                        </div>
+                        ${actionButton}
+                    </div>
+                `;
+
+                // Fetch restaurant name
+                 db.ref('restaurants/' + order.restaurantId + '/name').once('value').then(snap => {
+                     const restaurantName = snap.val() || 'Unknown Restaurant';
+                     activeOrderContainer.querySelector('.order-info p:first-child').innerHTML = `<strong>Pickup From:</strong> ${restaurantName}`;
+                 });
+            }
+            
+            function renderAvailableOrder(orderId, order) {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.innerHTML = `
+                    <h4>New Order Available</h4>
+                    <div class="order-info">
+                        <p><strong>Pickup From:</strong> Fetching restaurant...</p>
+                        <p><strong>Deliver To:</strong> ${order.address}</p>
+                    </div>
+                    <button class="btn btn-full" onclick="acceptOrder('${orderId}')">Accept Order</button>
+                `;
+                availableOrdersContainer.appendChild(card);
+                
+                // Fetch and update restaurant name asynchronously
+                db.ref('restaurants/' + order.restaurantId + '/name').once('value').then(snap => {
+                     const restaurantName = snap.val() || 'Unknown Restaurant';
+                     card.querySelector('.order-info p:first-child').innerHTML = `<strong>Pickup From:</strong> ${restaurantName}`;
+                 });
+            }
+            
+            window.acceptOrder = (orderId) => {
+                db.ref('orders/' + orderId).update({
+                    deliveryUid: currentUser.uid,
+                    status: 'PICKED_UP'
+                });
+            };
+            
+            window.updateOrderStatus = (orderId, newStatus) => {
+                 db.ref('orders/' + orderId).update({ status: newStatus });
+            };
+
+            window.sendLocationLink = (orderId) => {
+                const link = document.getElementById('location-link').value;
+                if (link) {
+                    db.ref('orders/' + orderId).update({ locationLink: link })
+                        .then(() => alert('Location sent!'));
+                }
+            };
+            
+            // --- EARNINGS & PROFILE ---
+            function loadProfileData() {
+                db.ref('deliveryPartners/' + currentUser.uid).once('value', snapshot => {
+                    const data = snapshot.val();
+                    document.getElementById('profile-name').value = data.name || '';
+                    document.getElementById('profile-phone').value = data.phone || '';
+                    document.getElementById('profile-vehicle').value = data.vehicle || '';
+                });
+            }
+
+            document.getElementById('profile-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+                db.ref('deliveryPartners/' + currentUser.uid).update({
+                    name: document.getElementById('profile-name').value,
+                    phone: document.getElementById('profile-phone').value,
+                    vehicle: document.getElementById('profile-vehicle').value
+                }).then(() => alert('Profile updated!'));
+            });
+
+            function loadEarnings() {
+                const earningsRef = db.ref('orders').orderByChild('deliveryUid').equalTo(currentUser.uid);
+                earningsRef.on('value', snapshot => {
+                    let totalDeliveries = 0;
+                    let totalEarnings = 0; // In a real app, this would be commission, not total order value
+                    snapshot.forEach(childSnapshot => {
+                        const order = childSnapshot.val();
+                        if (order.status === 'DELIVERED') {
+                            totalDeliveries++;
+                            // For simplicity, we'll sum the total order value.
+                            // A real app would calculate a delivery fee/commission.
+                            totalEarnings += order.totalAmount;
+                        }
+                    });
+                    document.getElementById('total-deliveries').textContent = totalDeliveries;
+                    document.getElementById('total-earnings').textContent = `₹${totalEarnings.toFixed(2)}`;
+                });
+            }
+
+        });
+    </script>
+</body>
+</html>
